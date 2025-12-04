@@ -1,0 +1,206 @@
+# NTX .gitignore
+# 作者: Catsayer
+
+# ===========================
+# Go
+# ===========================
+
+# 编译产物
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+
+# Go 工作区文件
+go.work
+go.work.sum
+
+# 依赖模块
+vendor/
+
+# 测试缓存
+.cache/
+
+# 覆盖率报告
+*.coverprofile
+coverage.*
+*.cover
+
+# ===========================
+# 构建目录
+# ===========================
+
+# 构建输出
+bin/
+dist/
+build/
+output/
+
+# 临时文件
+tmp/
+temp/
+
+# ===========================
+# IDE 和编辑器
+# ===========================
+
+# Visual Studio Code
+.vscode/
+*.code-workspace
+
+# IntelliJ IDEA / GoLand
+.idea/
+*.iml
+*.ipr
+*.iws
+out/
+
+# Vim
+*.swp
+*.swo
+*~
+.vim/
+
+# Emacs
+*~
+\#*\#
+.\#*
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+# ===========================
+# 操作系统
+# ===========================
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+
+# Linux
+*~
+.fuse_hidden*
+.directory
+.Trash-*
+.nfs*
+
+# Windows
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+*.stackdump
+[Dd]esktop.ini
+$RECYCLE.BIN/
+*.cab
+*.msi
+*.msix
+*.msm
+*.msp
+*.lnk
+
+# ===========================
+# 项目特定
+# ===========================
+
+# 配置文件（包含敏感信息）
+*.local.yaml
+*.local.yml
+*.local.json
+.env
+.env.local
+.env.*.local
+
+# 日志文件
+*.log
+logs/
+
+# 数据库文件
+*.db
+*.sqlite
+*.sqlite3
+
+# 缓存目录
+.cache/
+cache/
+
+# 插件目录
+plugins/*.so
+plugins/*.dll
+
+# 测试数据
+test/testdata/*.tmp
+test/fixtures/tmp/
+
+# 性能分析文件
+*.prof
+*.pprof
+cpu.prof
+mem.prof
+profile.out
+
+# 调试文件
+debug
+debug.test
+__debug_bin
+
+# Air - Live reload for Go
+.air.toml
+tmp/
+
+# ===========================
+# 文档和报告
+# ===========================
+
+# 生成的文档
+docs/build/
+docs/_build/
+site/
+
+# 报告文件
+reports/
+*.html
+*.xml
+
+# ===========================
+# 发布和打包
+# ===========================
+
+# 压缩文件
+*.zip
+*.tar.gz
+*.tgz
+*.rar
+*.7z
+
+# 发布产物
+releases/
+artifacts/
+
+# ===========================
+# 其他
+# ===========================
+
+# 备份文件
+*.bak
+*.backup
+*.old
+*_backup
+
+# 临时笔记
+TODO.local
+NOTES.local
+scratch.*
