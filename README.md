@@ -324,8 +324,3 @@ make all
 
 如果你觉得这个项目有帮助，请给它一个 ⭐️！
 
----
-
-<div align="center">
-Made with ❤️ by Catsayer
-</div>
