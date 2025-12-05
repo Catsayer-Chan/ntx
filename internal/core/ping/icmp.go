@@ -45,7 +45,7 @@ func NewICMPPinger() (*ICMPPinger, error) {
 	// 尝试打开 ICMPv4 连接
 	network := "ip4:icmp"
 	if runtime.GOOS == "darwin" || runtime.GOOS == "linux" {
-		network = "udp4"
+		network = "tcp4"
 	}
 
 	conn4, err := icmp.ListenPacket(network, "0.0.0.0")
@@ -58,7 +58,7 @@ func NewICMPPinger() (*ICMPPinger, error) {
 	// 尝试打开 ICMPv6 连接
 	network6 := "ip6:ipv6-icmp"
 	if runtime.GOOS == "darwin" || runtime.GOOS == "linux" {
-		network6 = "udp6"
+		network6 = "tcp6"
 	}
 
 	conn6, err := icmp.ListenPacket(network6, "::")
@@ -103,8 +103,8 @@ func (p *ICMPPinger) Ping(target string, opts *types.PingOptions) (*types.PingRe
 			IP:        hostInfo.IP,
 			IPVersion: hostInfo.IPVersion,
 		},
-		Protocol: types.ProtocolICMP,
-		Replies:  make([]*types.PingReply, 0, opts.Count),
+		Protocol:   types.ProtocolICMP,
+		Replies:    make([]*types.PingReply, 0, opts.Count),
 		Statistics: &types.Statistics{},
 		Context: &types.ExecutionContext{
 			StartTime: time.Now(),
