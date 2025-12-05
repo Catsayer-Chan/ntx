@@ -37,7 +37,6 @@ coverage.*
 bin/
 dist/
 build/
-output/
 
 # 临时文件
 tmp/
@@ -65,7 +64,6 @@ out/
 .vim/
 
 # Emacs
-*~
 \#*\#
 .\#*
 
@@ -134,7 +132,6 @@ logs/
 *.sqlite3
 
 # 缓存目录
-.cache/
 cache/
 
 # 插件目录
@@ -159,7 +156,6 @@ __debug_bin
 
 # Air - Live reload for Go
 .air.toml
-tmp/
 
 # ===========================
 # 文档和报告
