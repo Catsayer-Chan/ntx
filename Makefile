@@ -14,6 +14,8 @@ ALL_PACKAGES=$(shell go list ./...)
 LDFLAGS=-ldflags "-X main.Version=$(VERSION) -X main.BuildTime=$(shell date -u '+%Y-%m-%d_%H:%M:%S') -s -w"
 GCFLAGS=-gcflags "all=-trimpath=$(PWD)"
 ASMFLAGS=-asmflags "all=-trimpath=$(PWD)"
+BUILD_TAGS=-tags netgo
+EXTRA_FLAGS=-installsuffix netgo
 
 # 目标平台
 PLATFORMS=linux darwin windows
@@ -25,7 +27,7 @@ GREEN=\033[0;32m
 YELLOW=\033[1;33m
 NC=\033[0m # No Color
 
-.PHONY: all build clean test coverage lint fmt vet deps help install uninstall cross-build
+.PHONY: all build build-small clean test coverage lint fmt vet deps help install uninstall cross-build
 
 # 默认目标
 all: clean deps fmt vet lint test build
@@ -36,6 +38,7 @@ help:
 	@echo ""
 	@echo "$(YELLOW)可用目标：$(NC)"
 	@echo "  $(GREEN)make build$(NC)        - 编译项目"
+	@echo "  $(GREEN)make build-small$(NC)  - 编译并使用 UPX 压缩（减小体积）"
 	@echo "  $(GREEN)make test$(NC)         - 运行测试"
 	@echo "  $(GREEN)make coverage$(NC)     - 生成测试覆盖率报告"
 	@echo "  $(GREEN)make lint$(NC)         - 运行代码检查"
@@ -55,6 +58,26 @@ build:
 	@mkdir -p $(BUILD_DIR)
 	@go build $(LDFLAGS) $(GCFLAGS) $(ASMFLAGS) -o $(BUILD_DIR)/$(APP_NAME) $(MAIN_PATH)
 	@echo "$(GREEN)✓ 编译完成: $(BUILD_DIR)/$(APP_NAME)$(NC)"
+	@ls -lh $(BUILD_DIR)/$(APP_NAME)
+
+# 编译小体积版本（使用 UPX 压缩）
+build-small: build
+	@echo "$(GREEN)使用 UPX 压缩二进制文件...$(NC)"
+	@if command -v upx >/dev/null 2>&1; then \
+		cp $(BUILD_DIR)/$(APP_NAME) $(BUILD_DIR)/$(APP_NAME).backup; \
+		upx --best --lzma --force-macos $(BUILD_DIR)/$(APP_NAME) 2>/dev/null || \
+		upx --best --lzma $(BUILD_DIR)/$(APP_NAME); \
+		echo "$(GREEN)✓ 压缩完成$(NC)"; \
+		echo "$(YELLOW)压缩前大小:$(NC)"; \
+		ls -lh $(BUILD_DIR)/$(APP_NAME).backup; \
+		echo "$(YELLOW)压缩后大小:$(NC)"; \
+		ls -lh $(BUILD_DIR)/$(APP_NAME); \
+		rm $(BUILD_DIR)/$(APP_NAME).backup; \
+	else \
+		echo "$(YELLOW)! UPX 未安装，无法压缩$(NC)"; \
+		echo "$(YELLOW)  macOS 安装: brew install upx$(NC)"; \
+		echo "$(YELLOW)  Linux 安装: apt-get install upx 或 yum install upx$(NC)"; \
+	fi
 
 # 交叉编译
 cross-build:

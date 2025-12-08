@@ -17,7 +17,6 @@ import (
 	"github.com/catsayer/ntx/pkg/types"
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 	"go.uber.org/zap"
 )
 
@@ -109,7 +108,7 @@ func runPing(_ *cobra.Command, args []string) {
 	target := args[0]
 
 	// 检查输出格式，非text格式仍使用旧方式（批量输出）
-	outputFormat := types.OutputFormat(viper.GetString("output"))
+	outputFormat := types.OutputFormat(Output)
 	if outputFormat != types.OutputText && outputFormat != "" {
 		runPingBatch(target)
 		return
@@ -126,11 +125,10 @@ func runPingRealtime(target string) {
 		zap.String("protocol", pingProtocol))
 
 	// 设置颜色函数
-	noColor := viper.GetBool("no-color")
 	green := color.New(color.FgGreen).SprintFunc()
 	red := color.New(color.FgRed).SprintFunc()
 
-	if noColor {
+	if NoColor {
 		color.NoColor = true
 		green = fmt.Sprint
 		red = fmt.Sprint
@@ -366,10 +364,8 @@ func runPingBatch(target string) {
 	}
 
 	// 格式化输出
-	outputFormat := types.OutputFormat(viper.GetString("output"))
-	noColor := viper.GetBool("no-color")
-
-	f := formatter.NewFormatter(outputFormat, noColor)
+	outputFormat := types.OutputFormat(Output)
+	f := formatter.NewFormatter(outputFormat, NoColor)
 	output, err := f.Format(result)
 	if err != nil {
 		logger.Error("格式化输出失败", zap.Error(err))

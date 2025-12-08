@@ -14,7 +14,6 @@ import (
 	"github.com/catsayer/ntx/pkg/errors"
 	"github.com/catsayer/ntx/pkg/types"
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 	"go.uber.org/zap"
 )
 
@@ -154,8 +153,8 @@ func runTrace(cmd *cobra.Command, args []string) {
 	}
 
 	// 格式化输出
-	outputFormat := types.OutputFormat(viper.GetString("output"))
-	noColor := viper.GetBool("no-color")
+	outputFormat := types.OutputFormat(Output)
+	noColor := NoColor
 
 	f := formatter.NewFormatter(outputFormat, noColor)
 	output, err := f.Format(result)

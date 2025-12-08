@@ -8,12 +8,11 @@
 //
 // 依赖：
 // - github.com/spf13/cobra: CLI 框架
-// - github.com/spf13/viper: 配置管理
 // - internal/logger: 日志系统
-// - internal/config: 配置管理
 //
 // 使用示例：
-//   err := cmd.Execute()
+//
+//	err := cmd.Execute()
 //
 // 作者: Catsayer
 package cmd
@@ -24,15 +23,13 @@ import (
 
 	"github.com/catsayer/ntx/internal/logger"
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
-	"go.uber.org/zap"
 )
 
 var (
-	cfgFile string
-	verbose bool
-	output  string
-	noColor bool
+	// 全局配置变量，可被子命令访问
+	Verbose bool
+	Output  string
+	NoColor bool
 )
 
 // rootCmd 表示在没有任何子命令时调用的基本命令
@@ -70,59 +67,24 @@ func init() {
 	cobra.OnInitialize(initConfig)
 
 	// 全局持久化标志
-	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "配置文件路径 (默认: $HOME/.ntx.yaml)")
-	rootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "启用详细输出")
-	rootCmd.PersistentFlags().StringVarP(&output, "output", "o", "text", "输出格式: text|json|yaml")
-	rootCmd.PersistentFlags().BoolVar(&noColor, "no-color", false, "禁用彩色输出")
-
-	// 绑定到 viper
-	viper.BindPFlag("verbose", rootCmd.PersistentFlags().Lookup("verbose"))
-	viper.BindPFlag("output", rootCmd.PersistentFlags().Lookup("output"))
-	viper.BindPFlag("no-color", rootCmd.PersistentFlags().Lookup("no-color"))
+	rootCmd.PersistentFlags().BoolVarP(&Verbose, "verbose", "v", false, "启用详细输出")
+	rootCmd.PersistentFlags().StringVarP(&Output, "output", "o", "text", "输出格式: text|json|yaml")
+	rootCmd.PersistentFlags().BoolVar(&NoColor, "no-color", false, "禁用彩色输出")
 }
 
-// initConfig 读取配置文件和环境变量
+// initConfig 初始化配置和日志系统
 func initConfig() {
-	if cfgFile != "" {
-		// 使用命令行指定的配置文件
-		viper.SetConfigFile(cfgFile)
-	} else {
-		// 查找主目录
-		home, err := os.UserHomeDir()
-		if err != nil {
-			fmt.Fprintln(os.Stderr, err)
-			os.Exit(1)
-		}
-
-		// 在主目录中搜索 ".ntx" 配置文件
-		viper.AddConfigPath(home)
-		viper.AddConfigPath(".")
-		viper.SetConfigType("yaml")
-		viper.SetConfigName(".ntx")
-	}
-
-	// 读取环境变量
-	viper.SetEnvPrefix("NTX")
-	viper.AutomaticEnv()
-
-	// 如果找到配置文件，则读取它
-	if err := viper.ReadInConfig(); err == nil {
-		if verbose {
-			fmt.Fprintln(os.Stderr, "使用配置文件:", viper.ConfigFileUsed())
-		}
-	}
-
 	// 初始化日志系统
 	logLevel := "info"
-	if verbose {
+	if Verbose {
 		logLevel = "debug"
 	}
 
 	logConfig := logger.Config{
 		Level:             logLevel,
-		Development:       verbose,
+		Development:       Verbose,
 		DisableCaller:     false,
-		DisableStacktrace: !verbose,
+		DisableStacktrace: !Verbose,
 		OutputPaths:       []string{"stdout"},
 		ErrorOutputPaths:  []string{"stderr"},
 	}
@@ -135,5 +97,5 @@ func initConfig() {
 	// 确保在程序退出时刷新日志
 	defer logger.Sync()
 
-	logger.Debug("配置初始化完成", zap.String("config", viper.ConfigFileUsed()))
+	logger.Debug("配置初始化完成")
 }
