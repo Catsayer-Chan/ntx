@@ -42,26 +42,20 @@ func NewICMPPinger() (*ICMPPinger, error) {
 		id: os.Getpid() & 0xffff,
 	}
 
-	// 尝试打开 ICMPv4 连接
-	network := "udp4"
-	if runtime.GOOS == "windows" {
-		network = "ip4:icmp"
-	}
-
-	conn4, err := icmp.ListenPacket(network, "0.0.0.0")
+	// 打开 ICMPv4 连接
+	// 注意：所有平台都使用 ip4:icmp，需要特权
+	// - Linux: 需要 root 或 CAP_NET_RAW
+	// - macOS: 需要 sudo
+	// - Windows: 需要管理员权限
+	conn4, err := icmp.ListenPacket("ip4:icmp", "")
 	if err != nil {
 		return nil, errors.NewPermissionError("icmp ping", "raw socket",
-			"需要 root 权限或 CAP_NET_RAW 能力")
+			getPermissionHint())
 	}
 	p.conn4 = conn4
 
-	// 尝试打开 ICMPv6 连接
-	network6 := "udp6"
-	if runtime.GOOS == "windows" {
-		network6 = "ip6:ipv6-icmp"
-	}
-
-	conn6, err := icmp.ListenPacket(network6, "::")
+	// 尝试打开 ICMPv6 连接（可选）
+	conn6, err := icmp.ListenPacket("ip6:ipv6-icmp", "")
 	if err != nil {
 		// ICMPv6 可能不可用，不视为错误
 		p.conn6 = nil
@@ -70,6 +64,20 @@ func NewICMPPinger() (*ICMPPinger, error) {
 	}
 
 	return p, nil
+}
+
+// getPermissionHint 根据操作系统返回权限提示
+func getPermissionHint() string {
+	switch runtime.GOOS {
+	case "darwin":
+		return "需要 root 权限，请使用: sudo ntx ping <target>"
+	case "linux":
+		return "需要 root 权限或 CAP_NET_RAW 能力，请使用: sudo ntx ping <target>"
+	case "windows":
+		return "需要管理员权限，请以管理员身份运行"
+	default:
+		return "需要特权"
+	}
 }
 
 // Ping 执行 ICMP Ping

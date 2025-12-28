@@ -36,29 +36,30 @@ var (
 var pingCmd = &cobra.Command{
 	Use:   "ping <target>",
 	Short: "Ping 一个主机",
-	Long: `使用 TCP、ICMP 或 HTTP 协议 Ping 一个主机。
+	Long: `使用 ICMP、TCP 或 HTTP 协议 Ping 一个主机。
 
-TCP Ping（默认）:
-  通过建立 TCP 连接来测试端口可达性
-  不需要特殊权限，推荐日常使用
-
-ICMP Ping:
-  使用 ICMP Echo Request/Reply 测试网络连通性
+ICMP Ping（默认，推荐）:
+  使用 ICMP Echo Request/Reply 测试主机连通性
   需要 root 权限或 CAP_NET_RAW 能力
+  无权限时自动降级到 TCP Ping
+
+TCP Ping:
+  通过建立 TCP 连接来测试端口可达性
+  不需要特殊权限，但只能测试特定端口
 
 HTTP Ping:
   通过发送 HTTP 请求来测试 Web 服务
   不需要特殊权限
 
 示例:
-  # TCP Ping (默认，连接 80 端口)
+  # ICMP Ping (默认，测试主机可达性)
   ntx ping google.com
 
-  # TCP Ping 指定端口
-  ntx ping google.com --port 443
+  # 无 root 权限时会自动降级到 TCP Ping
+  ntx ping google.com  # 自动尝试 80 端口
 
-  # ICMP Ping (需要 root 权限)
-  sudo ntx ping google.com --protocol icmp
+  # TCP Ping 指定端口
+  ntx ping google.com --protocol tcp --port 443
 
   # HTTP Ping
   ntx ping https://www.google.com --protocol http
@@ -76,8 +77,8 @@ func init() {
 	rootCmd.AddCommand(pingCmd)
 
 	// 协议选项
-	pingCmd.Flags().StringVarP(&pingProtocol, "protocol", "p", "tcp",
-		"协议类型: tcp, icmp, http (默认: tcp)")
+	pingCmd.Flags().StringVarP(&pingProtocol, "protocol", "p", "icmp",
+		"协议类型: icmp, tcp, http (默认: icmp, 无权限时自动降级到 tcp)")
 
 	// 基本选项
 	pingCmd.Flags().IntVarP(&pingCount, "count", "c", 4,
