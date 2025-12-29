@@ -34,9 +34,9 @@ func DefaultTraceOptions() *TraceOptions {
 	return &TraceOptions{
 		Protocol:     ProtocolICMP,
 		MaxHops:      30,
-		Timeout:      3 * time.Second,
+		Timeout:      DefaultTraceTimeout,
 		Queries:      3,
-		Port:         33434,
+		Port:         DefaultTraceroutePort,
 		PacketSize:   60,
 		IPVersion:    IPvAny,
 		FirstTTL:     1,

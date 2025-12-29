@@ -18,18 +18,24 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"os"
 
+	"github.com/catsayer/ntx/internal/app"
+	"github.com/catsayer/ntx/internal/config"
 	"github.com/catsayer/ntx/internal/logger"
+	"github.com/catsayer/ntx/pkg/buildinfo"
 	"github.com/spf13/cobra"
+	"go.uber.org/zap"
 )
 
 var (
-	// 全局配置变量，可被子命令访问
-	Verbose bool
-	Output  string
-	NoColor bool
+	globalFlags = app.GlobalFlags{
+		Output: "text",
+	}
+	configFile string
+	appCtx     *app.Context
 )
 
 // rootCmd 表示在没有任何子命令时调用的基本命令
@@ -54,39 +60,70 @@ var rootCmd = &cobra.Command{
   ntx trace google.com --max-hops 20
   ntx scan 192.168.1.1 -p 1-1024
   ntx diag`,
-	Version: "0.1.0",
+	Version: buildinfo.Version,
 }
 
 // Execute 添加所有子命令到 root 命令并适当设置标志
 // 这被 main.main() 调用，只需要对 rootCmd 发生一次
 func Execute() error {
-	return rootCmd.Execute()
+	defer logger.Sync()
+	rootContext := rootCmd.Context()
+	if rootContext == nil {
+		rootContext = context.Background()
+	}
+	return rootCmd.ExecuteContext(rootContext)
 }
 
 func init() {
 	cobra.OnInitialize(initConfig)
 
+	rootCmd.PersistentPreRun = injectAppContext
+
 	// 全局持久化标志
-	rootCmd.PersistentFlags().BoolVarP(&Verbose, "verbose", "v", false, "启用详细输出")
-	rootCmd.PersistentFlags().StringVarP(&Output, "output", "o", "text", "输出格式: text|json|yaml")
-	rootCmd.PersistentFlags().BoolVar(&NoColor, "no-color", false, "禁用彩色输出")
+	rootCmd.PersistentFlags().BoolVarP(&globalFlags.Verbose, "verbose", "v", false, "启用详细输出")
+	rootCmd.PersistentFlags().StringVarP(&globalFlags.Output, "output", "o", "text", "输出格式: text|json|yaml")
+	rootCmd.PersistentFlags().BoolVar(&globalFlags.NoColor, "no-color", false, "禁用彩色输出")
+	rootCmd.PersistentFlags().StringVar(&configFile, "config", "", "配置文件路径 (默认自动搜索)")
 }
 
 // initConfig 初始化配置和日志系统
 func initConfig() {
-	// 初始化日志系统
-	logLevel := "info"
-	if Verbose {
-		logLevel = "debug"
+	loader := config.NewLoader()
+	cfg, usedPath, err := loader.LoadWithEnv(configFile)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "加载配置失败: %v\n", err)
+		os.Exit(1)
+	}
+	if err := config.Validate(cfg); err != nil {
+		fmt.Fprintf(os.Stderr, "配置验证失败: %v\n", err)
+		os.Exit(1)
+	}
+
+	flags := rootCmd.PersistentFlags()
+	if !flags.Changed("verbose") {
+		globalFlags.Verbose = cfg.Global.Verbose
+	}
+	if !flags.Changed("output") && cfg.Global.Output != "" {
+		globalFlags.Output = cfg.Global.Output
+	}
+	if !flags.Changed("no-color") {
+		globalFlags.NoColor = cfg.Global.NoColor
+	}
+	if globalFlags.Output == "" {
+		globalFlags.Output = "text"
 	}
 
 	logConfig := logger.Config{
-		Level:             logLevel,
-		Development:       Verbose,
+		Level:             cfg.Global.LogLevel,
+		Development:       globalFlags.Verbose,
 		DisableCaller:     false,
-		DisableStacktrace: !Verbose,
+		DisableStacktrace: !globalFlags.Verbose,
 		OutputPaths:       []string{"stdout"},
 		ErrorOutputPaths:  []string{"stderr"},
+	}
+	if cfg.Global.LogFile != "" {
+		logConfig.OutputPaths = append(logConfig.OutputPaths, cfg.Global.LogFile)
+		logConfig.ErrorOutputPaths = append(logConfig.ErrorOutputPaths, cfg.Global.LogFile)
 	}
 
 	if err := logger.Init(logConfig); err != nil {
@@ -94,8 +131,24 @@ func initConfig() {
 		os.Exit(1)
 	}
 
-	// 确保在程序退出时刷新日志
-	defer logger.Sync()
+	appCtx = app.NewContext(cfg, globalFlags)
+	rootContext := app.WithContext(rootCmd.Context(), appCtx)
+	rootCmd.SetContext(rootContext)
 
-	logger.Debug("配置初始化完成")
+	if usedPath != "" {
+		logger.Debug("配置初始化完成", zap.String("config", usedPath))
+	} else {
+		logger.Debug("配置初始化完成，使用内置默认配置")
+	}
+}
+
+func injectAppContext(cmd *cobra.Command, _ []string) {
+	if appCtx == nil {
+		fmt.Fprintln(os.Stderr, "应用上下文未初始化")
+		os.Exit(1)
+	}
+	if ctx, ok := app.FromContext(cmd.Context()); ok && ctx != nil {
+		return
+	}
+	cmd.SetContext(app.WithContext(cmd.Context(), appCtx))
 }

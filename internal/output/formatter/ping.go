@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/catsayer/ntx/pkg/termutil"
 	"github.com/catsayer/ntx/pkg/types"
-	"github.com/fatih/color"
 )
 
 // FormatPingText 格式化 Ping 结果为文本
@@ -17,27 +17,19 @@ func FormatPingText(result *types.PingResult, noColor bool) string {
 	var sb strings.Builder
 
 	// 设置颜色函数
-	green := color.New(color.FgGreen).SprintFunc()
-	red := color.New(color.FgRed).SprintFunc()
-	yellow := color.New(color.FgYellow).SprintFunc()
-	cyan := color.New(color.FgCyan).SprintFunc()
-	bold := color.New(color.Bold).SprintFunc()
-
-	if noColor {
-		color.NoColor = true
-		green = fmt.Sprint
-		red = fmt.Sprint
-		yellow = fmt.Sprint
-		cyan = fmt.Sprint
-		bold = fmt.Sprint
-	}
+	printer := termutil.NewColorPrinter(noColor)
+	green := printer.Success
+	red := printer.Error
+	yellow := printer.Warning
+	cyan := printer.Info
+	bold := printer.Bold
 
 	// 标题
 	sb.WriteString(bold(fmt.Sprintf("PING %s (%s) %s protocol\n",
 		result.Target.Hostname,
 		result.Target.IP,
 		result.Protocol)))
-	sb.WriteString(strings.Repeat("-", 60) + "\n")
+	sb.WriteString(strings.Repeat("-", types.TableWidthPingText) + "\n")
 
 	// 响应列表
 	for _, reply := range result.Replies {
@@ -60,7 +52,7 @@ func FormatPingText(result *types.PingResult, noColor bool) string {
 
 	// 统计信息
 	if result.Statistics != nil {
-		sb.WriteString("\n" + strings.Repeat("-", 60) + "\n")
+		sb.WriteString("\n" + strings.Repeat("-", types.TableWidthPingText) + "\n")
 		sb.WriteString(bold(fmt.Sprintf("--- %s ping statistics ---\n", result.Target.Hostname)))
 
 		stats := result.Statistics
@@ -95,27 +87,39 @@ func FormatPingTable(result *types.PingResult, noColor bool) string {
 	var sb strings.Builder
 
 	// 设置颜色函数
-	green := color.New(color.FgGreen).SprintFunc()
-	red := color.New(color.FgRed).SprintFunc()
-	yellow := color.New(color.FgYellow).SprintFunc()
-	bold := color.New(color.Bold).SprintFunc()
-
-	if noColor {
-		color.NoColor = true
-		green = fmt.Sprint
-		red = fmt.Sprint
-		yellow = fmt.Sprint
-		bold = fmt.Sprint
-	}
+	printer := termutil.NewColorPrinter(noColor)
+	green := printer.Success
+	red := printer.Error
+	yellow := printer.Warning
+	bold := printer.Bold
 
 	// 标题
 	sb.WriteString(bold(fmt.Sprintf("PING %s (%s)\n\n", result.Target.Hostname, result.Target.IP)))
 
 	// 表头
-	header := fmt.Sprintf("%-6s %-20s %-10s %-10s %-10s %-10s",
-		"SEQ", "FROM", "BYTES", "TTL", "TIME", "STATUS")
+	headerFormat := fmt.Sprintf("%%-%ds %%-%ds %%-%ds %%-%ds %%-%ds %%-%ds",
+		types.ColumnWidthPingSeq,
+		types.ColumnWidthPingFrom,
+		types.ColumnWidthPingBytes,
+		types.ColumnWidthPingTTL,
+		types.ColumnWidthPingTime,
+		types.ColumnWidthPingStatus)
+	rowFormat := fmt.Sprintf("%%-%dd %%-%ds %%-%dd %%-%dd %%-%ds %%-%ds",
+		types.ColumnWidthPingSeq,
+		types.ColumnWidthPingFrom,
+		types.ColumnWidthPingBytes,
+		types.ColumnWidthPingTTL,
+		types.ColumnWidthPingTime,
+		types.ColumnWidthPingStatus)
+	header := fmt.Sprintf(headerFormat,
+		"SEQ",
+		"FROM",
+		"BYTES",
+		"TTL",
+		"TIME",
+		"STATUS")
 	sb.WriteString(bold(header) + "\n")
-	sb.WriteString(strings.Repeat("-", 78) + "\n")
+	sb.WriteString(strings.Repeat("-", types.TableWidthPingTable) + "\n")
 
 	// 数据行
 	for _, reply := range result.Replies {
@@ -131,7 +135,7 @@ func FormatPingTable(result *types.PingResult, noColor bool) string {
 			statusStr = yellow("UNKNOWN")
 		}
 
-		row := fmt.Sprintf("%-6d %-20s %-10d %-10d %-10s %s",
+		row := fmt.Sprintf(rowFormat,
 			reply.Seq,
 			reply.From,
 			reply.Bytes,
@@ -144,7 +148,7 @@ func FormatPingTable(result *types.PingResult, noColor bool) string {
 
 	// 统计信息
 	if result.Statistics != nil {
-		sb.WriteString("\n" + strings.Repeat("-", 78) + "\n")
+		sb.WriteString("\n" + strings.Repeat("-", types.TableWidthPingTable) + "\n")
 		sb.WriteString(bold("Statistics:\n"))
 
 		stats := result.Statistics

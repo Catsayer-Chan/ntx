@@ -390,40 +390,53 @@ ntx trace google.com -o table
 
 ### 配置文件位置
 
-- Linux/macOS: `~/.ntx.yaml` 或 `~/.config/ntx/config.yaml`
-- Windows: `%USERPROFILE%\.ntx.yaml`
+默认搜索顺序（从高到低优先级）：
+
+1. `--config` 参数指定的文件
+2. 当前目录 `.ntx.yaml`
+3. `~/.ntx.yaml`
+4. `~/.config/ntx/config.yaml`
+5. `/etc/ntx/config.yaml`
+
+项目根目录 `configs/default.yaml` 可作为模板复制到上述任意位置。
 
 ### 配置文件示例
 
 ```yaml
-# 全局配置
-verbose: false
-output: text
-no-color: false
+global:
+  verbose: false
+  output: text
+  no_color: false
+  log_level: info
 
-# Ping 默认配置
 ping:
-  protocol: tcp
+  protocol: icmp
   count: 4
-  timeout: 5
-  interval: 1
-  port: 443
+  timeout: 5s
+  interval: 1s
+  port: 0
   ttl: 64
 
-# Traceroute 默认配置
-traceroute:
-  max-hops: 30
-  timeout: 3
+dns:
+  server: "1.1.1.1:53"
+  timeout: 3s
+
+http:
+  timeout: 15s
+  follow_redirect: true
+  max_redirects: 5
+
+scan:
+  timeout: 3s
+  concurrency: 200
+  service_detect: true
+
+trace:
+  max_hops: 25
+  timeout: 3s
   queries: 3
   port: 33434
-
-# 日志配置
-log:
-  level: info
-  file: ~/.ntx/logs/ntx.log
-  max-size: 10  # MB
-  max-backups: 5
-  max-age: 30  # 天
+  first_ttl: 1
 ```
 
 ### 使用自定义配置
@@ -435,6 +448,7 @@ ntx ping google.com --config /path/to/config.yaml
 # 环境变量配置
 export NTX_OUTPUT=json
 export NTX_VERBOSE=true
+export NTX_DNS_SERVER=1.1.1.1:53
 ntx ping google.com
 ```
 

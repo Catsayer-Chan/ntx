@@ -4,6 +4,8 @@
 # 变量定义
 APP_NAME=ntx
 VERSION=0.1.0
+GIT_COMMIT=$(shell git rev-parse --short HEAD 2>/dev/null || echo unknown)
+BUILD_TIME=$(shell date -u '+%Y-%m-%d_%H:%M:%S')
 BUILD_DIR=bin
 MAIN_PATH=./cmd/ntx
 INTERNAL_PACKAGES=$(shell go list ./internal/...)
@@ -11,7 +13,11 @@ PKG_PACKAGES=$(shell go list ./pkg/...)
 ALL_PACKAGES=$(shell go list ./...)
 
 # 编译参数
-LDFLAGS=-ldflags "-X main.Version=$(VERSION) -X main.BuildTime=$(shell date -u '+%Y-%m-%d_%H:%M:%S') -s -w"
+LDFLAGS=-ldflags "\
+	-X github.com/catsayer/ntx/pkg/buildinfo.Version=$(VERSION) \
+	-X github.com/catsayer/ntx/pkg/buildinfo.GitCommit=$(GIT_COMMIT) \
+	-X github.com/catsayer/ntx/pkg/buildinfo.BuildTime=$(BUILD_TIME) \
+	-s -w"
 GCFLAGS=-gcflags "all=-trimpath=$(PWD)"
 ASMFLAGS=-asmflags "all=-trimpath=$(PWD)"
 BUILD_TAGS=-tags netgo

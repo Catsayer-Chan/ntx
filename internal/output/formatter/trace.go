@@ -7,8 +7,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/catsayer/ntx/pkg/termutil"
 	"github.com/catsayer/ntx/pkg/types"
-	"github.com/fatih/color"
 )
 
 // FormatTraceText 格式化 Traceroute 结果为文本
@@ -16,22 +16,13 @@ func FormatTraceText(result *types.TraceResult, noColor bool) string {
 	var sb strings.Builder
 
 	// 设置颜色函数
-	green := color.New(color.FgGreen).SprintFunc()
-	red := color.New(color.FgRed).SprintFunc()
-	yellow := color.New(color.FgYellow).SprintFunc()
-	cyan := color.New(color.FgCyan).SprintFunc()
-	bold := color.New(color.Bold).SprintFunc()
-	gray := color.New(color.FgHiBlack).SprintFunc()
-
-	if noColor {
-		color.NoColor = true
-		green = fmt.Sprint
-		red = fmt.Sprint
-		yellow = fmt.Sprint
-		cyan = fmt.Sprint
-		bold = fmt.Sprint
-		gray = fmt.Sprint
-	}
+	printer := termutil.NewColorPrinter(noColor)
+	green := printer.Success
+	red := printer.Error
+	yellow := printer.Warning
+	cyan := printer.Info
+	bold := printer.Bold
+	gray := printer.Muted
 
 	// 标题
 	sb.WriteString(bold(fmt.Sprintf("traceroute to %s (%s), %d hops max, %s protocol\n",
@@ -39,7 +30,7 @@ func FormatTraceText(result *types.TraceResult, noColor bool) string {
 		result.Target.IP,
 		len(result.Hops),
 		result.Protocol)))
-	sb.WriteString(strings.Repeat("-", 70) + "\n")
+	sb.WriteString(strings.Repeat("-", types.TableWidthTraceText) + "\n")
 
 	// 跳信息
 	for _, hop := range result.Hops {
@@ -86,7 +77,7 @@ func FormatTraceText(result *types.TraceResult, noColor bool) string {
 	}
 
 	// 统计信息
-	sb.WriteString("\n" + strings.Repeat("-", 70) + "\n")
+	sb.WriteString("\n" + strings.Repeat("-", types.TableWidthTraceText) + "\n")
 	if result.ReachedDestination {
 		sb.WriteString(green(fmt.Sprintf("Trace complete: reached %s in %d hops\n",
 			result.Target.Hostname,
@@ -114,31 +105,41 @@ func FormatTraceTable(result *types.TraceResult, noColor bool) string {
 	var sb strings.Builder
 
 	// 设置颜色函数
-	green := color.New(color.FgGreen).SprintFunc()
-	red := color.New(color.FgRed).SprintFunc()
-	yellow := color.New(color.FgYellow).SprintFunc()
-	cyan := color.New(color.FgCyan).SprintFunc()
-	bold := color.New(color.Bold).SprintFunc()
-	gray := color.New(color.FgHiBlack).SprintFunc()
-
-	if noColor {
-		color.NoColor = true
-		green = fmt.Sprint
-		red = fmt.Sprint
-		yellow = fmt.Sprint
-		cyan = fmt.Sprint
-		bold = fmt.Sprint
-		gray = fmt.Sprint
-	}
+	printer := termutil.NewColorPrinter(noColor)
+	green := printer.Success
+	red := printer.Error
+	yellow := printer.Warning
+	cyan := printer.Info
+	bold := printer.Bold
+	gray := printer.Muted
 
 	// 标题
 	sb.WriteString(bold(fmt.Sprintf("TRACEROUTE %s (%s)\n\n", result.Target.Hostname, result.Target.IP)))
 
 	// 表头
-	header := fmt.Sprintf("%-4s %-40s %-12s %-12s %-12s %-8s",
-		"HOP", "HOSTNAME (IP)", "PROBE 1", "PROBE 2", "PROBE 3", "AVG RTT")
+	headerFormat := fmt.Sprintf("%%-%ds %%-%ds %%-%ds %%-%ds %%-%ds %%-%ds",
+		types.ColumnWidthTraceHop,
+		types.ColumnWidthTraceHost,
+		types.ColumnWidthTraceProbe,
+		types.ColumnWidthTraceProbe,
+		types.ColumnWidthTraceProbe,
+		types.ColumnWidthTraceAvg)
+	rowFormat := fmt.Sprintf("%%-%dd %%-%ds %%-%ds %%-%ds %%-%ds %%-%ds",
+		types.ColumnWidthTraceHop,
+		types.ColumnWidthTraceHost,
+		types.ColumnWidthTraceProbe,
+		types.ColumnWidthTraceProbe,
+		types.ColumnWidthTraceProbe,
+		types.ColumnWidthTraceAvg)
+	header := fmt.Sprintf(headerFormat,
+		"HOP",
+		"HOSTNAME (IP)",
+		"PROBE 1",
+		"PROBE 2",
+		"PROBE 3",
+		"AVG RTT")
 	sb.WriteString(bold(header) + "\n")
-	sb.WriteString(strings.Repeat("-", 95) + "\n")
+	sb.WriteString(strings.Repeat("-", types.TableWidthTraceTable) + "\n")
 
 	// 数据行
 	for _, hop := range result.Hops {
@@ -176,7 +177,7 @@ func FormatTraceTable(result *types.TraceResult, noColor bool) string {
 			avgStr = cyan(formatDuration(avgRTT))
 		}
 
-		row := fmt.Sprintf("%-4d %-40s %-12s %-12s %-12s %s",
+		row := fmt.Sprintf(rowFormat,
 			hop.TTL,
 			hostname,
 			probeStrs[0],
@@ -188,7 +189,7 @@ func FormatTraceTable(result *types.TraceResult, noColor bool) string {
 	}
 
 	// 统计信息
-	sb.WriteString("\n" + strings.Repeat("-", 95) + "\n")
+	sb.WriteString("\n" + strings.Repeat("-", types.TableWidthTraceTable) + "\n")
 	sb.WriteString(bold("Summary:\n"))
 	sb.WriteString(fmt.Sprintf("  Total Hops:     %d\n", result.HopCount))
 	if result.ReachedDestination {

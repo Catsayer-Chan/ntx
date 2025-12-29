@@ -8,12 +8,15 @@ import (
 	"os"
 	"time"
 
+	"github.com/catsayer/ntx/internal/app"
+	"github.com/catsayer/ntx/internal/cmd/options"
 	"github.com/catsayer/ntx/internal/core/trace"
 	"github.com/catsayer/ntx/internal/logger"
 	"github.com/catsayer/ntx/internal/output/formatter"
 	"github.com/catsayer/ntx/pkg/errors"
 	"github.com/catsayer/ntx/pkg/types"
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 	"go.uber.org/zap"
 )
 
@@ -87,30 +90,13 @@ func init() {
 }
 
 func runTrace(cmd *cobra.Command, args []string) {
+	appCtx := mustAppContext(cmd)
 	target := args[0]
+	opts := buildTraceOptions(cmd, appCtx)
 
 	logger.Info("开始 Traceroute",
 		zap.String("target", target),
-		zap.Int("max_hops", traceMaxHops))
-
-	// 构建选项
-	opts := &types.TraceOptions{
-		Protocol:   types.ProtocolICMP,
-		MaxHops:    traceMaxHops,
-		Timeout:    time.Duration(traceTimeout * float64(time.Second)),
-		Queries:    traceQueries,
-		Port:       tracePort,
-		PacketSize: 60,
-		IPVersion:  types.IPvAny,
-		FirstTTL:   traceFirstTTL,
-	}
-
-	// 设置 IP 版本
-	if traceIPv4 {
-		opts.IPVersion = types.IPv4
-	} else if traceIPv6 {
-		opts.IPVersion = types.IPv6
-	}
+		zap.Int("max_hops", opts.MaxHops))
 
 	// 验证参数
 	if opts.MaxHops <= 0 || opts.MaxHops > 255 {
@@ -153,8 +139,8 @@ func runTrace(cmd *cobra.Command, args []string) {
 	}
 
 	// 格式化输出
-	outputFormat := types.OutputFormat(Output)
-	noColor := NoColor
+	outputFormat := types.OutputFormat(appCtx.Flags.Output)
+	noColor := appCtx.Flags.NoColor
 
 	f := formatter.NewFormatter(outputFormat, noColor)
 	output, err := f.Format(result)
@@ -170,4 +156,63 @@ func runTrace(cmd *cobra.Command, args []string) {
 	if !result.ReachedDestination {
 		os.Exit(1)
 	}
+}
+
+func buildTraceOptions(cmd *cobra.Command, appCtx *app.Context) *types.TraceOptions {
+	return options.NewBuilder(types.DefaultTraceOptions()).
+		WithContext(appCtx).
+		WithCommand(cmd).
+		ApplyConfig(func(opts *types.TraceOptions, ctx *app.Context) {
+			if ctx == nil || ctx.Config == nil {
+				return
+			}
+			cfg := ctx.Config.Trace
+			if cfg.Protocol != "" {
+				opts.Protocol = cfg.Protocol
+			}
+			if cfg.MaxHops > 0 {
+				opts.MaxHops = cfg.MaxHops
+			}
+			if cfg.Timeout > 0 {
+				opts.Timeout = cfg.Timeout
+			}
+			if cfg.Queries > 0 {
+				opts.Queries = cfg.Queries
+			}
+			if cfg.Port != 0 {
+				opts.Port = cfg.Port
+			}
+			if cfg.PacketSize > 0 {
+				opts.PacketSize = cfg.PacketSize
+			}
+			if cfg.IPVersion != 0 {
+				opts.IPVersion = cfg.IPVersion
+			}
+			if cfg.FirstTTL > 0 {
+				opts.FirstTTL = cfg.FirstTTL
+			}
+		}).
+		ApplyFlags(func(opts *types.TraceOptions, flags *pflag.FlagSet) {
+			if flags.Changed("max-hops") {
+				opts.MaxHops = traceMaxHops
+			}
+			if flags.Changed("timeout") {
+				opts.Timeout = time.Duration(traceTimeout * float64(time.Second))
+			}
+			if flags.Changed("queries") {
+				opts.Queries = traceQueries
+			}
+			if flags.Changed("port") {
+				opts.Port = tracePort
+			}
+			if flags.Changed("first-ttl") {
+				opts.FirstTTL = traceFirstTTL
+			}
+			if flags.Changed("ipv4") && traceIPv4 {
+				opts.IPVersion = types.IPv4
+			} else if flags.Changed("ipv6") && traceIPv6 {
+				opts.IPVersion = types.IPv6
+			}
+		}).
+		Result()
 }

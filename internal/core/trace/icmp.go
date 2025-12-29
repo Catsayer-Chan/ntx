@@ -19,6 +19,7 @@ import (
 	"golang.org/x/net/ipv6"
 
 	"github.com/catsayer/ntx/pkg/errors"
+	"github.com/catsayer/ntx/pkg/netutil"
 	"github.com/catsayer/ntx/pkg/types"
 )
 
@@ -82,7 +83,7 @@ func (t *ICMPTracer) Trace(target string, opts *types.TraceOptions) (*types.Trac
 	}
 
 	// 解析主机信息
-	hostInfo, err := t.resolveHost(target, opts.IPVersion)
+	hostInfo, err := netutil.ResolveHost(target, opts.IPVersion)
 	if err != nil {
 		return nil, errors.NewNetworkError("resolve", target, err)
 	}
@@ -326,62 +327,6 @@ func (t *ICMPTracer) probeOnce(ctx context.Context, targetIP string, ttl, seq in
 			return probe
 		}
 	}
-}
-
-// resolveHost 解析主机名
-func (t *ICMPTracer) resolveHost(host string, ipVersion types.IPVersion) (*types.Host, error) {
-	// 检查是否已经是 IP 地址
-	if ip := net.ParseIP(host); ip != nil {
-		ver := types.IPv4
-		if ip.To4() == nil {
-			ver = types.IPv6
-		}
-		return &types.Host{
-			Hostname:  host,
-			IP:        ip.String(),
-			IPVersion: ver,
-		}, nil
-	}
-
-	// 解析域名
-	ips, err := net.LookupIP(host)
-	if err != nil {
-		return nil, errors.ErrDNSResolution
-	}
-
-	if len(ips) == 0 {
-		return nil, errors.ErrNoAddress
-	}
-
-	// 选择合适的 IP
-	var selectedIP net.IP
-	for _, ip := range ips {
-		if ipVersion == types.IPv4 && ip.To4() != nil {
-			selectedIP = ip
-			break
-		} else if ipVersion == types.IPv6 && ip.To4() == nil {
-			selectedIP = ip
-			break
-		} else if ipVersion == types.IPvAny {
-			selectedIP = ip
-			break
-		}
-	}
-
-	if selectedIP == nil {
-		return nil, errors.ErrNoAddress
-	}
-
-	ver := types.IPv4
-	if selectedIP.To4() == nil {
-		ver = types.IPv6
-	}
-
-	return &types.Host{
-		Hostname:  host,
-		IP:        selectedIP.String(),
-		IPVersion: ver,
-	}, nil
 }
 
 // Close 关闭资源

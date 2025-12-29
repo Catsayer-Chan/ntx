@@ -37,6 +37,8 @@ var (
 	ErrHostUnreachable = errors.New("host unreachable")
 	// ErrPortUnreachable 端口不可达
 	ErrPortUnreachable = errors.New("port unreachable")
+	// ErrNoResponse 目标无响应
+	ErrNoResponse = errors.New("target no response")
 
 	// ErrPermissionDenied 权限被拒绝
 	ErrPermissionDenied = errors.New("permission denied")
@@ -47,6 +49,12 @@ var (
 	ErrDNSResolution = errors.New("dns resolution failed")
 	// ErrNoAddress 无可用地址
 	ErrNoAddress = errors.New("no address available")
+	// ErrInvalidDomain 无效域名
+	ErrInvalidDomain = errors.New("invalid domain")
+	// ErrInvalidIP 无效 IP 地址
+	ErrInvalidIP = errors.New("invalid ip address")
+	// ErrInvalidTarget 无效目标
+	ErrInvalidTarget = errors.New("invalid target")
 
 	// ErrCanceled 操作被取消
 	ErrCanceled = errors.New("operation canceled")

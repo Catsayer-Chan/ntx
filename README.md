@@ -29,47 +29,60 @@ NTX (Network Tools eXtended) 是一个现代化的网络调试命令整合工具
 
 ## 特性
 
-### 核心功能
+### ✅ 已实现功能
 
-- **多协议 Ping**
-  - ICMP Ping（传统 ping）
-  - TCP Ping（通过 TCP 连接测试）
-  - HTTP Ping（通过 HTTP 请求测试）
+- **多协议 Ping** ⭐
+  - ICMP Ping（传统 ping，需要 root 权限）
+  - TCP Ping（通过 TCP 连接测试，无需 root）
+  - HTTP Ping（通过 HTTP 请求测试，无需 root）
+  - 支持多目标并发 Ping
+  - 实时监控模式（ASCII 图表）
+  - 统计信息（最小/最大/平均/标准差延迟、丢包率）
+  - 自动权限降级（ICMP → TCP）
 
-- **路由追踪**
+- **路由追踪** ⭐
   - ICMP Traceroute
-  - UDP Traceroute
-  - TCP Traceroute
   - 支持最大跳数、超时时间等配置
+  - 路径可视化
+
+- **DNS 查询** ⭐
+  - A/AAAA/CNAME/MX/NS/TXT/SOA/PTR/SRV 记录查询
+  - 反向 DNS 查询
+  - 批量查询
+  - 自定义 DNS 服务器
+  - 查询所有记录类型
+
+- **网络接口信息** ⭐
+  - 接口列表和详细信息
+  - IPv4/IPv6 地址、MAC 地址
+  - 网卡状态和标志
+  - 流量统计（Linux 完整支持）
+  - 路由表信息（Linux）
+
+- **HTTP 客户端** ⭐
+  - GET/POST/PUT/DELETE/PATCH/HEAD/OPTIONS 方法
+  - 自定义请求头和请求体
+  - 超时控制和重定向控制
+  - JSON 美化输出
+  - 性能测试模式（Benchmark）
+
+- **连接状态监控** ⭐
+  - TCP/UDP 连接列表（Linux 完整支持）
+  - 监听端口查看
+  - 连接状态过滤
+  - 端口过滤
+  - 连接统计
 
 - **端口扫描**
-  - TCP 端口扫描
-  - UDP 端口扫描
-  - SYN 扫描（需要 root 权限）
-  - 支持端口范围、并发控制
-
-- **DNS 查询**
-  - A/AAAA/CNAME/MX/NS/TXT 记录查询
-  - 反向 DNS 查询
-  - 自定义 DNS 服务器
-  - DNS 追踪
+  - TCP Connect 扫描
+  - TCP SYN 扫描（需要 root 权限）
+  - UDP 扫描
+  - 服务识别和版本探测
 
 - **WHOIS 查询**
   - 域名 WHOIS
   - IP WHOIS
-  - 自动选择合适的 WHOIS 服务器
-
-- **连接状态监控**
-  - TCP/UDP 连接列表
-  - 监听端口查看
-  - 进程关联（需要 root 权限）
-  - 连接统计
-
-- **网络接口信息**
-  - 接口列表
-  - IP 地址、MAC 地址
-  - 网络统计信息
-  - MTU、速率等详细信息
+  - AS 查询
 
 - **智能诊断**
   - 自动诊断网络问题
@@ -78,16 +91,10 @@ NTX (Network Tools eXtended) 是一个现代化的网络调试命令整合工具
   - 路由测试
   - 生成诊断报告
 
-- **HTTP 客户端**
-  - GET/POST/PUT/DELETE 等方法
-  - 自定义请求头
-  - 请求/响应详情显示
-  - 性能测试
-
 - **批量任务**
-  - 支持 YAML/JSON 配置文件
+  - YAML/JSON 配置文件支持
   - 并发执行
-  - 任务依赖
+  - 任务调度
   - 结果聚合
 
 ### 设计特性
@@ -136,41 +143,324 @@ go install github.com/catsayer/ntx/cmd/ntx@latest
 
 ## 快速开始
 
-### 基本用法
+### 基本命令概览
 
 ```bash
-# 查看帮助
+# 查看所有可用命令
 ntx --help
 
-# Ping 测试
-ntx ping google.com -c 5
+# 查看特定命令的帮助
+ntx ping --help
+ntx dns --help
+```
 
-# 路由追踪
+### 核心功能使用指南
+
+#### 1. Ping 测试 - 多协议连通性检测
+
+```bash
+# ICMP Ping (传统 ping,需要 root/管理员权限)
+sudo ntx ping google.com -c 5
+
+# TCP Ping (无需 root 权限,推荐)
+ntx ping google.com --protocol tcp --port 443
+
+# HTTP Ping (通过 HTTP 请求测试)
+ntx ping https://www.google.com --protocol http
+
+# 多目标并发 Ping
+ntx ping google.com baidu.com github.com -c 3
+
+# 实时监控模式 (带 ASCII 图表)
+ntx ping google.com --mode monitor
+
+# 流式输出模式
+ntx ping google.com --mode stream -c 10
+
+# 批量并发模式 (JSON 输出)
+ntx ping google.com baidu.com github.com --mode batch -o json
+
+# 自定义参数
+ntx ping 8.8.8.8 -c 10 -i 0.5 -t 3 --size 128 --ttl 64
+```
+
+**参数说明**:
+- `-c, --count`: Ping 次数 (默认: 4)
+- `-i, --interval`: 间隔时间/秒 (默认: 1)
+- `-t, --timeout`: 超时时间/秒 (默认: 5)
+- `--size`: 数据包大小/字节 (默认: 64)
+- `--ttl`: 生存时间 (默认: 64)
+- `--protocol`: 协议类型 (icmp/tcp/http)
+- `--mode`: 输出模式 (stream/monitor/batch)
+
+---
+
+#### 2. DNS 查询 - 域名解析
+
+```bash
+# 查询 A 记录
+ntx dns google.com
+
+# 查询特定类型记录
+ntx dns google.com --type MX     # 邮件服务器
+ntx dns google.com --type NS     # 名称服务器
+ntx dns google.com --type TXT    # 文本记录
+ntx dns google.com --type AAAA   # IPv6 地址
+
+# 查询所有类型记录
+ntx dns google.com --all
+
+# 指定 DNS 服务器
+ntx dns google.com --server 1.1.1.1:53
+
+# 反向 DNS 查询 (IP → 域名)
+ntx dns --reverse 8.8.8.8
+
+# 批量查询多个域名
+ntx dns --batch domains.txt
+
+# JSON 输出
+ntx dns google.com -o json
+```
+
+**支持的记录类型**:
+`A`, `AAAA`, `CNAME`, `MX`, `NS`, `TXT`, `SOA`, `PTR`, `SRV`
+
+---
+
+#### 3. 路由追踪 - 网络路径分析
+
+```bash
+# 基本路由追踪
 ntx trace google.com
 
-# 端口扫描
+# 指定最大跳数
+ntx trace google.com --max-hops 20
+
+# 使用 TCP 协议 (某些网络 ICMP 被阻断)
+ntx trace google.com --protocol tcp --port 443
+
+# 自定义查询参数
+ntx trace google.com --queries 5 --timeout 3
+
+# 详细输出
+ntx trace google.com -v
+```
+
+**参数说明**:
+- `--max-hops`: 最大跳数 (默认: 30)
+- `--timeout`: 每跳超时时间/秒 (默认: 3)
+- `--queries`: 每跳查询次数 (默认: 3)
+- `--first-ttl`: 起始 TTL (默认: 1)
+
+---
+
+#### 4. 端口扫描 - 端口开放检测
+
+```bash
+# 扫描常用端口
+ntx scan 192.168.1.1
+
+# 扫描指定端口
+ntx scan 192.168.1.1 -p 80,443,8080
+
+# 扫描端口范围
 ntx scan 192.168.1.1 -p 1-1024
 
-# DNS 查询
-ntx dns google.com --type A
+# 混合端口列表
+ntx scan 192.168.1.1 -p 80,443,8000-9000
 
-# WHOIS 查询
-ntx whois google.com
+# 服务识别
+ntx scan 192.168.1.1 -p 1-1000 --service-detect
 
-# 查看网络连接
-ntx conn --listen
+# 调整并发数和超时
+ntx scan 192.168.1.1 -p 1-1000 --concurrency 200 --timeout 2
 
-# 查看网络接口
-ntx iface --detail
+# JSON 输出
+ntx scan 192.168.1.1 -p 1-1024 -o json
+```
 
-# 智能诊断
-ntx diag
+**参数说明**:
+- `-p, --ports`: 端口范围 (默认: 常用端口)
+- `--timeout`: 超时时间/秒 (默认: 3)
+- `--concurrency`: 并发数 (默认: 100)
+- `--service-detect`: 启用服务识别
 
-# HTTP 请求
+---
+
+#### 5. HTTP 客户端 - HTTP 请求测试
+
+```bash
+# GET 请求
 ntx http https://api.github.com
 
-# 批量任务
+# POST 请求
+ntx http https://api.example.com --method POST --data '{"key":"value"}'
+
+# 自定义请求头
+ntx http https://api.github.com -H "Authorization: token xxx"
+
+# 不跟随重定向
+ntx http https://google.com --no-follow-redirect
+
+# 调整超时和最大重定向次数
+ntx http https://example.com --timeout 10 --max-redirects 5
+
+# HTTP 性能测试 (Benchmark)
+ntx http https://example.com --benchmark -n 100 --concurrency 10
+
+# 详细输出 (显示请求头和响应头)
+ntx http https://api.github.com -v
+```
+
+**参数说明**:
+- `--method`: HTTP 方法 (GET/POST/PUT/DELETE/PATCH/HEAD/OPTIONS)
+- `--data`: 请求体数据
+- `-H, --header`: 自定义请求头
+- `--benchmark`: 启用性能测试模式
+- `-n`: 请求次数 (benchmark 模式)
+
+---
+
+#### 6. 网络连接查看 - 连接状态监控
+
+```bash
+# 查看所有连接
+ntx conn
+
+# 只看 TCP 连接
+ntx conn --tcp
+
+# 只看 UDP 连接
+ntx conn --udp
+
+# 只看监听端口
+ntx conn --listen
+
+# 过滤特定端口
+ntx conn --port 8080
+
+# 过滤特定状态
+ntx conn --state ESTABLISHED
+
+# 显示统计信息
+ntx conn --stats
+
+# JSON 输出
+ntx conn -o json
+```
+
+**支持的连接状态**:
+`ESTABLISHED`, `LISTEN`, `TIME_WAIT`, `CLOSE_WAIT`, `SYN_SENT`, `SYN_RECEIVED`
+
+---
+
+#### 7. 网络接口信息 - 接口详情查看
+
+```bash
+# 查看所有网络接口
+ntx iface
+
+# 查看接口详细信息
+ntx iface --detail
+
+# 查看流量统计 (Linux 完整支持)
+ntx iface --stats
+
+# JSON 输出
+ntx iface -o json
+```
+
+---
+
+#### 8. WHOIS 查询 - 域名/IP 信息查询
+
+```bash
+# 域名 WHOIS 查询
+ntx whois google.com
+
+# IP WHOIS 查询
+ntx whois 8.8.8.8
+
+# AS 号查询
+ntx whois AS15169
+
+# 显示原始响应
+ntx whois google.com --raw
+
+# JSON 输出
+ntx whois google.com -o json
+```
+
+---
+
+#### 9. 智能诊断 - 自动网络问题诊断
+
+```bash
+# 诊断网络连接
+ntx diag
+
+# 诊断特定目标
+ntx diag --target google.com
+
+# 详细诊断报告
+ntx diag -v
+
+# JSON 输出
+ntx diag -o json
+```
+
+**诊断内容**:
+- 网络接口状态
+- DNS 解析测试
+- 连通性测试 (多协议)
+- 路由追踪
+- 网络配置检查
+
+---
+
+#### 10. 批量任务 - YAML 配置批量执行
+
+```bash
+# 执行批量任务
 ntx batch -f tasks.yaml
+
+# 指定并发数
+ntx batch -f tasks.yaml --concurrency 20
+
+# JSON 输出
+ntx batch -f tasks.yaml -o json
+```
+
+**tasks.yaml 示例**:
+```yaml
+tasks:
+  - name: "Ping 测试"
+    type: ping
+    enabled: true
+    targets:
+      - google.com
+      - baidu.com
+    options:
+      count: 5
+      protocol: tcp
+
+  - name: "DNS 查询"
+    type: dns
+    enabled: true
+    targets:
+      - google.com
+      - github.com
+    options:
+      type: A
+
+  - name: "端口扫描"
+    type: scan
+    enabled: true
+    targets:
+      - 192.168.1.1
+    options:
+      ports: "80,443,8080"
 ```
 
 ### 高级用法
@@ -221,44 +511,88 @@ ntx batch -f tasks.yaml --concurrency 10
 
 ## 配置
 
-NTX 支持通过配置文件自定义行为。配置文件位置：
+NTX 支持通过配置文件自定义行为。默认搜索顺序（从高到低优先级）：
 
-- Linux/macOS: `~/.ntx.yaml`
-- Windows: `%USERPROFILE%\.ntx.yaml`
-- 或使用 `--config` 参数指定
+1. `--config` 参数指定的文件
+2. 当前目录 `.ntx.yaml`
+3. `~/.ntx.yaml`
+4. `~/.config/ntx/config.yaml`
+5. `/etc/ntx/config.yaml`
+
+可复制 `configs/default.yaml` 到上述任意位置并按需修改。常用环境变量可覆盖配置，例如：
+
+- `NTX_VERBOSE=true`
+- `NTX_OUTPUT=json`
+- `NTX_DNS_SERVER=1.1.1.1:53`
+- `NTX_HTTP_TIMEOUT=10s`
 
 配置文件示例：
 
 ```yaml
 # 全局配置
-verbose: false
-output: text
-no-color: false
+global:
+  verbose: false
+  output: text
+  no_color: false
+  log_level: info
 
 # Ping 配置
 ping:
   count: 4
-  timeout: 5
-  interval: 1
+  timeout: 5s
+  interval: 1s
+  size: 64
+  ttl: 64
+  protocol: icmp
 
 # 扫描配置
 scan:
-  timeout: 3
+  timeout: 3s
   concurrency: 100
 
 # DNS 配置
 dns:
-  server: 8.8.8.8
-  timeout: 5
+  server: "8.8.8.8:53"
+  timeout: 5s
+  fallback_servers:
+    - "8.8.4.4:53"
+    - "1.1.1.1:53"
+    - "223.5.5.5:53"      # AliDNS (中国大陆)
+    - "119.29.29.29:53"   # DNSPod (中国大陆)
 
 # HTTP 配置
 http:
-  timeout: 30
-  follow-redirects: true
-  max-redirects: 10
+  timeout: 30s
+  follow_redirect: true
+  max_redirects: 10
+  user_agent: "NTX/dev"
+
+# Traceroute 配置
+trace:
+  max_hops: 30
+  timeout: 3s
 ```
 
 ## 开发
+
+### 项目结构
+
+```
+ntx/
+├── cmd/ntx/              # 应用入口
+├── internal/
+│   ├── cmd/              # CLI 命令实现
+│   ├── core/             # 核心业务逻辑
+│   ├── logger/           # 日志系统
+│   └── output/           # 输出格式化
+├── pkg/
+│   ├── types/            # 类型定义
+│   └── errors/           # 错误处理
+├── configs/              # 配置文件
+├── docs/                 # 文档
+│   └── 关于NTX的优化和重构建议.md  # 代码审查报告
+└── Makefile
+```
 
 ### 构建命令
 
@@ -296,16 +630,46 @@ make all
 
 1. Fork 本仓库
 2. 创建特性分支 (`git checkout -b feature/amazing-feature`)
-3. 提交更改 (`git commit -m 'Add some amazing feature'`)
+3. 提交更改 (`git commit -m 'feat: add some amazing feature'`)
 4. 推送到分支 (`git push origin feature/amazing-feature`)
 5. 创建 Pull Request
 
 ### 开发指南
 
 - 遵循项目代码规范
-- 编写测试用例
-- 更新文档
+- 编写测试用例 (单元测试 + 集成测试)
+- 更新文档 (代码注释 + README)
 - 运行 `make check` 确保所有检查通过
+
+### 提交消息规范
+
+使用 [Conventional Commits](https://www.conventionalcommits.org/) 规范:
+
+```
+<type>(<scope>): <subject>
+
+<body>
+
+<footer>
+```
+
+**类型 (type)**:
+- `feat`: 新功能
+- `fix`: Bug 修复
+- `refactor`: 重构
+- `test`: 测试
+- `docs`: 文档
+- `chore`: 构建/工具
+
+**示例**:
+```
+feat(ping): add DNS caching for host resolution
+
+Implement in-memory DNS cache with configurable TTL to reduce
+repeated DNS queries for the same host.
+
+Closes #123
+```
 
 ## 许可证
 
