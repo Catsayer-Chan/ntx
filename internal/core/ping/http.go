@@ -13,6 +13,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -242,6 +243,11 @@ func (p *HTTPPinger) parseURL(target string, opts *types.PingOptions) (*url.URL,
 		if opts.HTTPPath != "" {
 			u.Path = opts.HTTPPath
 		}
+	}
+
+	// 支持通过 --port 覆盖 URL 的默认端口
+	if opts.Port > 0 && u.Port() == "" {
+		u.Host = net.JoinHostPort(u.Hostname(), strconv.Itoa(opts.Port))
 	}
 
 	return u, nil

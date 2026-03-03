@@ -13,7 +13,7 @@ import (
 func (s *Service) checkLocalConnectivity(ctx context.Context) *CheckResult {
 	startTime := time.Now()
 
-	gateway, err := getDefaultGateway()
+	gateway, err := s.getDefaultGateway()
 	if err != nil {
 		return &CheckResult{
 			Name:     "本地连通性检查",

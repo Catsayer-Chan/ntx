@@ -4,6 +4,7 @@
 package types
 
 import (
+	"context"
 	"time"
 )
 
@@ -165,7 +166,7 @@ func (r *TraceResult) GetLastHop() *TraceHop {
 // Tracer Traceroute 执行器接口
 type Tracer interface {
 	// Trace 执行 Traceroute 操作
-	Trace(target string, opts *TraceOptions) (*TraceResult, error)
+	Trace(ctx context.Context, target string, opts *TraceOptions) (*TraceResult, error)
 	// Close 关闭资源
 	Close() error
 }

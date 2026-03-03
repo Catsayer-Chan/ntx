@@ -118,7 +118,7 @@ func initConfig() {
 		Development:       globalFlags.Verbose,
 		DisableCaller:     false,
 		DisableStacktrace: !globalFlags.Verbose,
-		OutputPaths:       []string{"stdout"},
+		OutputPaths:       []string{"stderr"},
 		ErrorOutputPaths:  []string{"stderr"},
 	}
 	if cfg.Global.LogFile != "" {

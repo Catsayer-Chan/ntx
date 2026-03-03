@@ -73,10 +73,13 @@ func NewICMPTracer() (*ICMPTracer, error) {
 }
 
 // Trace 执行 ICMP Traceroute
-func (t *ICMPTracer) Trace(target string, opts *types.TraceOptions) (*types.TraceResult, error) {
+func (t *ICMPTracer) Trace(ctx context.Context, target string, opts *types.TraceOptions) (*types.TraceResult, error) {
 	// 验证参数
 	if target == "" {
 		return nil, errors.ErrInvalidHost
+	}
+	if ctx == nil {
+		ctx = context.Background()
 	}
 	if opts == nil {
 		opts = types.DefaultTraceOptions()
@@ -117,8 +120,13 @@ func (t *ICMPTracer) Trace(target string, opts *types.TraceOptions) (*types.Trac
 	result.Context.Hostname = hostname
 
 	// 执行 Traceroute
-	ctx := context.Background()
 	for ttl := opts.FirstTTL; ttl <= opts.MaxHops; ttl++ {
+		if err := ctx.Err(); err != nil {
+			result.Error = err
+			result.Status = types.StatusFailure
+			break
+		}
+
 		hop := t.traceHop(ctx, hostInfo.IP, ttl, opts)
 		result.AddHop(hop)
 
@@ -247,17 +255,41 @@ func (t *ICMPTracer) probeOnce(ctx context.Context, targetIP string, ttl, seq in
 		return probe
 	}
 
-	// 注意：在 UDP 模式下（Darwin/Linux），无法直接设置 TTL
-	// TTL 的设置需要通过特定的系统调用，这里暂时跳过
-	// 在生产环境中，可以使用原始 socket 来实现完整的 TTL 控制
+	// 尽可能设置 TTL/HopLimit，若内核不支持则继续执行探测
+	if ipVersion == 4 {
+		if err := conn.IPv4PacketConn().SetTTL(ttl); err != nil {
+			// 保持兼容：无法设置 TTL 时继续探测，最终由超时/响应决定结果
+		}
+	} else {
+		if err := conn.IPv6PacketConn().SetHopLimit(ttl); err != nil {
+			// 保持兼容：无法设置 HopLimit 时继续探测，最终由超时/响应决定结果
+		}
+	}
 
 	// 设置超时
 	deadline := time.Now().Add(opts.Timeout)
 	conn.SetReadDeadline(deadline)
 	conn.SetWriteDeadline(deadline)
 
+	cancelRead := make(chan struct{})
+	defer close(cancelRead)
+	go func() {
+		select {
+		case <-ctx.Done():
+			// 提前唤醒阻塞的 ReadFrom
+			_ = conn.SetReadDeadline(time.Now())
+		case <-cancelRead:
+		}
+	}()
+
 	// 记录开始时间
 	start := time.Now()
+
+	if err := ctx.Err(); err != nil {
+		probe.Status = types.StatusFailure
+		probe.Error = err.Error()
+		return probe
+	}
 
 	// 发送 ICMP 请求
 	_, err = conn.WriteTo(msgBytes, dst)
@@ -270,8 +302,19 @@ func (t *ICMPTracer) probeOnce(ctx context.Context, targetIP string, ttl, seq in
 	// 接收响应
 	recvBuf := make([]byte, 1500)
 	for {
+		if err := ctx.Err(); err != nil {
+			probe.Status = types.StatusFailure
+			probe.Error = err.Error()
+			return probe
+		}
+
 		n, peer, err := conn.ReadFrom(recvBuf)
 		if err != nil {
+			if ctx.Err() != nil {
+				probe.Status = types.StatusFailure
+				probe.Error = ctx.Err().Error()
+				return probe
+			}
 			if netErr, ok := err.(net.Error); ok && netErr.Timeout() {
 				probe.Status = types.StatusTimeout
 			} else {

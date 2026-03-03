@@ -4,6 +4,7 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"time"
@@ -113,6 +114,10 @@ func runTrace(cmd *cobra.Command, args []string) {
 		fmt.Fprintf(os.Stderr, "错误: 无效的起始 TTL %d，必须在 1-%d 之间\n", opts.FirstTTL, opts.MaxHops)
 		os.Exit(1)
 	}
+	if opts.Protocol != "" && opts.Protocol != types.ProtocolICMP {
+		fmt.Fprintf(os.Stderr, "错误: 当前仅支持 ICMP traceroute，收到协议: %s\n", opts.Protocol)
+		os.Exit(1)
+	}
 
 	// 创建 Tracer
 	tracer, err := trace.NewICMPTracer()
@@ -131,7 +136,11 @@ func runTrace(cmd *cobra.Command, args []string) {
 	defer tracer.Close()
 
 	// 执行 Traceroute
-	result, err := tracer.Trace(target, opts)
+	traceCtx := cmd.Context()
+	if traceCtx == nil {
+		traceCtx = context.Background()
+	}
+	result, err := tracer.Trace(traceCtx, target, opts)
 	if err != nil {
 		logger.Error("Traceroute 失败", zap.Error(err))
 		fmt.Fprintf(os.Stderr, "错误: %v\n", err)

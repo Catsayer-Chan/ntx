@@ -36,8 +36,9 @@ var (
 )
 
 var batchCmd = &cobra.Command{
-	Use:   "batch",
-	Short: "批量任务执行",
+	Use:          "batch",
+	Short:        "批量任务执行",
+	SilenceUsage: true,
 	Long: `通过 YAML 配置文件批量执行网络任务。
 
 支持功能:
@@ -87,8 +88,14 @@ func runBatch(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("执行批量任务失败: %w", err)
 	}
 
-	// 输出结果
-	return outputBatchResult(result, appCtx)
+	// 先输出结果，再根据任务状态返回退出码语义
+	if err := outputBatchResult(result, appCtx); err != nil {
+		return err
+	}
+	if result.FailedTasks > 0 {
+		return fmt.Errorf("批量任务存在失败项: %d/%d", result.FailedTasks, result.TotalTasks)
+	}
+	return nil
 }
 
 // outputBatchResult 输出批量任务结果

@@ -71,6 +71,7 @@ func init() {
 
 func runDiag(cmd *cobra.Command, args []string) error {
 	flags := mustAppContext(cmd).Flags
+	outputFormat := types.OutputFormat(flags.Output)
 	logger.Info("开始网络诊断")
 
 	// 构建诊断选项
@@ -88,10 +89,12 @@ func runDiag(cmd *cobra.Command, args []string) error {
 	// 创建诊断服务
 	diagService := diag.NewService()
 
-	// 显示诊断开始
-	fmt.Println(color.CyanString("🔍 NTX 网络诊断工具"))
-	fmt.Println(strings.Repeat("=", 70))
-	fmt.Println()
+	// 仅文本模式显示 banner，避免污染结构化输出
+	if outputFormat == types.OutputText || outputFormat == "" {
+		fmt.Println(color.CyanString("🔍 NTX 网络诊断工具"))
+		fmt.Println(strings.Repeat("=", 70))
+		fmt.Println()
+	}
 
 	// 执行诊断
 	ctx := context.Background()

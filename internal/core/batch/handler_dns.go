@@ -2,6 +2,7 @@ package batch
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/catsayer/ntx/internal/logger"
 	"github.com/catsayer/ntx/pkg/types"
@@ -9,6 +10,10 @@ import (
 )
 
 func (e *Executor) executeDNSTask(ctx context.Context, task Task, result *TaskResult) error {
+	if len(task.Targets) == 0 {
+		return fmt.Errorf("dns 任务未配置目标")
+	}
+
 	recordType := types.DNSTypeA
 
 	if task.Options != nil {
@@ -34,10 +39,12 @@ func (e *Executor) executeDNSTask(ctx context.Context, task Task, result *TaskRe
 		}
 	}
 
+	failures := 0
 	for _, target := range task.Targets {
 		dnsResult, err := e.resolver.Query(ctx, target, recordType)
 		if err != nil {
 			logger.Error("DNS 查询失败", zap.String("domain", target), zap.Error(err))
+			failures++
 			continue
 		}
 
@@ -47,6 +54,13 @@ func (e *Executor) executeDNSTask(ctx context.Context, task Task, result *TaskRe
 			zap.String("domain", target),
 			zap.Int("records", len(dnsResult.Records)),
 		)
+	}
+
+	if failures > 0 {
+		return fmt.Errorf("dns 任务部分失败: %d/%d 个目标失败", failures, len(task.Targets))
+	}
+	if len(result.Results) == 0 {
+		return fmt.Errorf("dns 任务未产生有效结果")
 	}
 
 	return nil

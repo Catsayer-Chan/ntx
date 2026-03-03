@@ -11,15 +11,16 @@
 // - go.uber.org/zap: 结构化日志库
 //
 // 使用示例：
-//   logger.Init(logger.Config{Level: "info", Development: false})
-//   logger.Info("服务启动", zap.String("host", "localhost"))
-//   logger.Error("连接失败", zap.Error(err))
+//
+//	logger.Init(logger.Config{Level: "info", Development: false})
+//	logger.Info("服务启动", zap.String("host", "localhost"))
+//	logger.Error("连接失败", zap.Error(err))
 //
 // 作者: Catsayer
 package logger
 
 import (
-	"os"
+	"fmt"
 
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
@@ -30,6 +31,8 @@ var (
 	globalLogger *zap.Logger
 	// globalSugar 是全局 sugar logger 实例（提供更简洁的 API）
 	globalSugar *zap.SugaredLogger
+	// closeFn 负责关闭通过 zap.Open 打开的 sink
+	closeFn func()
 )
 
 // Config 日志配置
@@ -62,6 +65,11 @@ func DefaultConfig() Config {
 
 // Init 初始化全局日志系统
 func Init(cfg Config) error {
+	if closeFn != nil {
+		closeFn()
+		closeFn = nil
+	}
+
 	// 解析日志级别
 	level := zapcore.InfoLevel
 	if err := level.UnmarshalText([]byte(cfg.Level)); err != nil {
@@ -94,17 +102,42 @@ func Init(cfg Config) error {
 		encoder = zapcore.NewJSONEncoder(encoderConfig)
 	}
 
+	outputPaths := cfg.OutputPaths
+	if len(outputPaths) == 0 {
+		outputPaths = []string{"stdout"}
+	}
+	outputSink, outputClose, err := zap.Open(outputPaths...)
+	if err != nil {
+		return fmt.Errorf("open log output sink failed: %w", err)
+	}
+
+	errorPaths := cfg.ErrorOutputPaths
+	if len(errorPaths) == 0 {
+		errorPaths = []string{"stderr"}
+	}
+	errorSink, errorClose, err := zap.Open(errorPaths...)
+	if err != nil {
+		outputClose()
+		return fmt.Errorf("open log error sink failed: %w", err)
+	}
+
+	closeFn = func() {
+		outputClose()
+		errorClose()
+	}
+
 	// 创建 core
 	core := zapcore.NewCore(
 		encoder,
-		zapcore.AddSync(os.Stdout),
+		outputSink,
 		level,
 	)
 
 	// 创建 logger 选项
-	opts := []zap.Option{
-		zap.AddCaller(),
-		zap.AddCallerSkip(1),
+	opts := []zap.Option{zap.ErrorOutput(errorSink)}
+
+	if !cfg.DisableCaller {
+		opts = append(opts, zap.AddCaller(), zap.AddCallerSkip(1))
 	}
 
 	if !cfg.DisableStacktrace {
@@ -167,10 +200,15 @@ func Fatal(msg string, fields ...zap.Field) {
 
 // Sync 刷新缓冲的日志
 func Sync() error {
+	var syncErr error
 	if globalLogger != nil {
-		return globalLogger.Sync()
+		syncErr = globalLogger.Sync()
 	}
-	return nil
+	if closeFn != nil {
+		closeFn()
+		closeFn = nil
+	}
+	return syncErr
 }
 
 // With 创建带有额外字段的子 logger

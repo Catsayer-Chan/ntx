@@ -80,15 +80,18 @@ func init() {
 func runScan(cmd *cobra.Command, args []string) error {
 	appCtx := mustAppContext(cmd)
 	target := args[0]
+	outputFormat := types.OutputFormat(appCtx.Flags.Output)
 
 	logger.Info("开始端口扫描", zap.String("target", target))
 
-	// 显示安全警告
-	color.NoColor = appCtx.Flags.NoColor
-	fmt.Println(color.YellowString("⚠️  安全提示:"))
-	fmt.Println(color.YellowString("   端口扫描功能仅用于合法授权场景"))
-	fmt.Println(color.YellowString("   未经授权扫描他人系统属于非法行为"))
-	fmt.Println()
+	// 仅文本模式显示安全提示，避免污染结构化输出
+	if outputFormat == types.OutputText || outputFormat == "" {
+		color.NoColor = appCtx.Flags.NoColor
+		fmt.Println(color.YellowString("⚠️  安全提示:"))
+		fmt.Println(color.YellowString("   端口扫描功能仅用于合法授权场景"))
+		fmt.Println(color.YellowString("   未经授权扫描他人系统属于非法行为"))
+		fmt.Println()
+	}
 
 	// 构建扫描选项
 	opts := buildScanOptions(cmd, appCtx)

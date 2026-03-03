@@ -2,6 +2,7 @@ package batch
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/catsayer/ntx/internal/logger"
@@ -10,6 +11,10 @@ import (
 )
 
 func (e *Executor) executeScanTask(ctx context.Context, task Task, result *TaskResult) error {
+	if len(task.Targets) == 0 {
+		return fmt.Errorf("scan 任务未配置目标")
+	}
+
 	opts := types.DefaultScanOptions()
 
 	if task.Options != nil {
@@ -29,10 +34,12 @@ func (e *Executor) executeScanTask(ctx context.Context, task Task, result *TaskR
 		}
 	}
 
+	failures := 0
 	for _, target := range task.Targets {
 		scanResult, err := e.scanner.Scan(ctx, target, opts)
 		if err != nil {
 			logger.Error("扫描失败", zap.String("target", target), zap.Error(err))
+			failures++
 			continue
 		}
 
@@ -42,6 +49,13 @@ func (e *Executor) executeScanTask(ctx context.Context, task Task, result *TaskR
 			zap.String("target", target),
 			zap.Int("open_ports", scanResult.Summary.OpenPorts),
 		)
+	}
+
+	if failures > 0 {
+		return fmt.Errorf("scan 任务部分失败: %d/%d 个目标失败", failures, len(task.Targets))
+	}
+	if len(result.Results) == 0 {
+		return fmt.Errorf("scan 任务未产生有效结果")
 	}
 
 	return nil

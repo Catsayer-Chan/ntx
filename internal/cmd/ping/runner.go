@@ -56,19 +56,24 @@ func (r *Runner) Run(ctx context.Context, targets []string, opts *types.PingOpti
 	}
 
 	targetOpts := *opts
-	pinger, err := r.factory.Create(&targetOpts)
-	if err != nil {
-		logger.Error("创建 Pinger 失败", zap.Error(err))
-		return err
-	}
-	defer pinger.Close()
-
 	switch r.cfg.Mode {
 	case ModeMonitor:
+		pinger, err := r.factory.Create(&targetOpts)
+		if err != nil {
+			logger.Error("创建 Pinger 失败", zap.Error(err))
+			return err
+		}
+		defer pinger.Close()
 		return runPingMonitor(ctx, pinger, targets[0], &targetOpts)
 	case ModeBatch:
-		return runPingBatchConcurrent(ctx, pinger, targets, &targetOpts, r.cfg.OutputFormat, r.cfg.NoColor)
+		return runPingBatchConcurrent(ctx, r.factory, targets, &targetOpts, r.cfg.OutputFormat, r.cfg.NoColor)
 	default:
+		pinger, err := r.factory.Create(&targetOpts)
+		if err != nil {
+			logger.Error("创建 Pinger 失败", zap.Error(err))
+			return err
+		}
+		defer pinger.Close()
 		return runPingStream(ctx, pinger, targets, &targetOpts, r.cfg.NoColor)
 	}
 }
